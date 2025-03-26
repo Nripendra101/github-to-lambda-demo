@@ -3,13 +3,12 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      python: 3.10
+      python: 3.11
     commands:
-      - echo "Cleaning any existing dependencies..."
-      - rm -rf python/  # Remove any previously installed dependencies
-      - mkdir -p python
       - echo "Installing dependencies for Lambda Layer..."
-      - pip install --no-cache-dir --force-reinstall -r requirements.txt -t python/
+      - rm -rf python/
+      - mkdir -p python
+      - pip install --no-cache-dir --only-binary=:all: -r requirements.txt -t python/
       - echo "Dependencies installed. Listing contents:"
       - ls -l python/
 
@@ -19,7 +18,6 @@ phases:
       - zip -r9 dependencies_layer.zip python
       - echo "Dependency layer zip created."
       - ls -lh dependencies_layer.zip
-
       - echo "Zipping Lambda function package..."
       - zip -r9 lambda_function.zip lambda_function.py
       - echo "Lambda function zip created."
@@ -34,15 +32,17 @@ phases:
           --zip-file fileb://dependencies_layer.zip \
           --compatible-runtimes python3.11 \
           --query Version --output text --region us-east-2)
+        if [ $? -ne 0 ]; then
+          echo "Error publishing Lambda Layer."
+          exit 1
+        fi
         echo "Published Lambda Layer Version: $LAYER_VERSION"
-
       - echo "Updating Lambda function code..."
       - |
         aws lambda update-function-code \
           --function-name github-to-lambda-test \
           --zip-file fileb://lambda_function.zip \
           --region us-east-2
-
       - echo "Waiting for Lambda function update to complete..."
       - |
         while true; do
@@ -54,10 +54,8 @@ phases:
           echo "Lambda update still in progress. Retrying in 10 seconds..."
           sleep 10
         done
-
       - echo "Fetching AWS Account ID from Environment Variable..."
       - echo "Using AWS_ACCOUNT_ID = $AWS_ACCOUNT_ID"
-
       - echo "Attaching latest Lambda Layer..."
       - |
         LAYER_ARN="arn:aws:lambda:us-east-2:$AWS_ACCOUNT_ID:layer:lambda-dependencies-layer:$LAYER_VERSION"
@@ -65,6 +63,4 @@ phases:
           --function-name github-to-lambda-test \
           --layers $LAYER_ARN \
           --region us-east-2
-
       - echo "Deployment Completed!"
-
