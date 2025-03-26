@@ -8,14 +8,20 @@ phases:
       - echo "Installing dependencies for Lambda Layer..."
       - mkdir -p python
       - pip install -r requirements.txt -t python/
+      - echo "Checking installed dependencies..."
+      - ls -l python/
 
   build:
     commands:
       - echo "Zipping dependency package for Lambda Layer..."
       - zip -r9 dependencies_layer.zip python
+      - echo "Verifying dependency ZIP file..."
+      - ls -lh dependencies_layer.zip
 
       - echo "Zipping Lambda function package..."
       - zip -r9 lambda_function.zip lambda_function.py
+      - echo "Verifying Lambda function ZIP file..."
+      - ls -lh lambda_function.zip
 
   post_build:
     commands:
@@ -38,6 +44,6 @@ phases:
 
       - echo "Updating function configuration with new layer..."
       - aws lambda update-function-configuration --function-name github-to-lambda-test --layers $LAYER_ARN --region us-east-2
-      
+
       - echo "Deployment Completed!"
 
