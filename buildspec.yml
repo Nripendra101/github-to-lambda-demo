@@ -8,42 +8,41 @@ phases:
       - echo "Installing dependencies for Lambda Layer..."
       - mkdir -p python
       - pip install -r requirements.txt -t python/
-      - echo "Checking installed dependencies..."
+      - echo "Dependencies installed. Listing contents:"
       - ls -l python/
 
   build:
     commands:
       - echo "Zipping dependency package for Lambda Layer..."
       - zip -r9 dependencies_layer.zip python
-      - echo "Verifying dependency ZIP file..."
+      - echo "Dependency layer zip created."
       - ls -lh dependencies_layer.zip
 
       - echo "Zipping Lambda function package..."
       - zip -r9 lambda_function.zip lambda_function.py
-      - echo "Verifying Lambda function ZIP file..."
+      - echo "Lambda function zip created."
       - ls -lh lambda_function.zip
 
   post_build:
     commands:
       - echo "Publishing new Lambda Layer version..."
-      - LAYER_VERSION=$(aws lambda publish-layer-version --layer-name lambda-dependencies-layer --zip-file fileb://dependencies_layer.zip --compatible-runtimes python3.11 --region us-east-2 --query Version --output text)
+      - |
+        LAYER_VERSION=$(aws lambda publish-layer-version \
+          --layer-name lambda-dependencies-layer \
+          --zip-file fileb://dependencies_layer.zip \
+          --compatible-runtimes python3.11 \
+          --query Version --output text --region us-east-2)
       - echo "Published Lambda Layer Version: $LAYER_VERSION"
 
-      - echo "Updating Lambda function code..."
+      - echo "Updating Lambda function..."
       - aws lambda update-function-code --function-name github-to-lambda-test --zip-file fileb://lambda_function.zip --region us-east-2
-
-      - echo "Waiting for Lambda function update to complete..."
-      - aws lambda wait function-updated --function-name github-to-lambda-test --region us-east-2
 
       - echo "Fetching AWS Account ID from Environment Variable..."
       - echo "Using AWS_ACCOUNT_ID = $AWS_ACCOUNT_ID"
 
       - echo "Attaching latest Lambda Layer..."
-      - LAYER_ARN="arn:aws:lambda:us-east-2:$AWS_ACCOUNT_ID:layer:lambda-dependencies-layer:$LAYER_VERSION"
-      - echo "Using LAYER_ARN: $LAYER_ARN"
-
-      - echo "Updating function configuration with new layer..."
+      - |
+        LAYER_ARN="arn:aws:lambda:us-east-2:$AWS_ACCOUNT_ID:layer:lambda-dependencies-layer:$LAYER_VERSION"
       - aws lambda update-function-configuration --function-name github-to-lambda-test --layers $LAYER_ARN --region us-east-2
 
       - echo "Deployment Completed!"
-
