@@ -20,18 +20,16 @@ phases:
   post_build:
     commands:
       - echo "Publishing new Lambda Layer version..."
-      - LAYER_VERSION=$(aws lambda publish-layer-version --layer-name lambda-dependencies-layer --zip-file fileb://dependencies_layer.zip --compatible-runtimes python3.11 --query Version --output text)
+      - LAYER_VERSION=$(aws lambda publish-layer-version --layer-name lambda-dependencies-layer --zip-file fileb://dependencies_layer.zip --compatible-runtimes python3.11 --query Version --output text --region us-east-2)
       
       - echo "Updating Lambda function..."
-      - aws lambda update-function-code --function-name github-to-lambda-test --zip-file fileb://lambda_function.zip
-      
-      - echo "Fetching AWS Region and Account ID..."
-      - REGION=$(aws configure get region)
-      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - aws lambda update-function-code --function-name github-to-lambda-test --zip-file fileb://lambda_function.zip --region us-east-2
+
+      - echo "Fetching AWS Account ID from Environment Variable..."
+      - echo "Using AWS_ACCOUNT_ID = $AWS_ACCOUNT_ID"
 
       - echo "Attaching latest Lambda Layer..."
-      - LAYER_ARN="arn:aws:lambda:$REGION:$ACCOUNT_ID:layer:lambda-dependencies-layer:$LAYER_VERSION"
-      - aws lambda update-function-configuration --function-name github-to-lambda-test --layers $LAYER_ARN
+      - LAYER_ARN="arn:aws:lambda:us-east-2:$AWS_ACCOUNT_ID:layer:lambda-dependencies-layer:$LAYER_VERSION"
+      - aws lambda update-function-configuration --function-name github-to-lambda-test --layers $LAYER_ARN --region us-east-2
       
       - echo "Deployment Completed!"
-
