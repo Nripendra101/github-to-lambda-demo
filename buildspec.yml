@@ -25,8 +25,13 @@ phases:
       - echo "Updating Lambda function..."
       - aws lambda update-function-code --function-name github-to-lambda-test --zip-file fileb://lambda_function.zip
       
+      - echo "Fetching AWS Region and Account ID..."
+      - REGION=$(aws configure get region)
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
       - echo "Attaching latest Lambda Layer..."
-      - aws lambda update-function-configuration --function-name github-to-lambda-test --layers arn:aws:lambda:your-region:your-account-id:layer:lambda-dependencies-layer:$LAYER_VERSION
+      - LAYER_ARN="arn:aws:lambda:$REGION:$ACCOUNT_ID:layer:lambda-dependencies-layer:$LAYER_VERSION"
+      - aws lambda update-function-configuration --function-name github-to-lambda-test --layers $LAYER_ARN
       
       - echo "Deployment Completed!"
 
