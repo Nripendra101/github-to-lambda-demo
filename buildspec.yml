@@ -34,12 +34,24 @@ phases:
           --query Version --output text --region us-east-2)
         echo "Published Lambda Layer Version: $LAYER_VERSION"
 
-      - echo "Updating Lambda function..."
+      - echo "Updating Lambda function code..."
       - |
         aws lambda update-function-code \
           --function-name github-to-lambda-test \
           --zip-file fileb://lambda_function.zip \
           --region us-east-2
+
+      - echo "Waiting for Lambda function update to complete..."
+      - |
+        while true; do
+          STATUS=$(aws lambda get-function-configuration --function-name github-to-lambda-test --query 'LastUpdateStatus' --output text --region us-east-2)
+          echo "Current Lambda update status: $STATUS"
+          if [ "$STATUS" == "Successful" ] || [ "$STATUS" == "Failed" ]; then
+            break
+          fi
+          echo "Lambda update still in progress. Retrying in 10 seconds..."
+          sleep 10
+        done
 
       - echo "Fetching AWS Account ID from Environment Variable..."
       - echo "Using AWS_ACCOUNT_ID = $AWS_ACCOUNT_ID"
@@ -53,4 +65,4 @@ phases:
           --region us-east-2
 
       - echo "Deployment Completed!"
-
+      
