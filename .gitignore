@@ -176,3 +176,5 @@ cython_debug/
 python/
 dependencies_layer.zip
 lambda_function.zip
+layers/
+deployment/

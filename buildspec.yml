@@ -3,7 +3,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      python: 3.11
+      python: 3.10
     commands:
       - echo "Cleaning any existing dependencies..."
       - rm -rf python/  # Remove any previously installed dependencies
