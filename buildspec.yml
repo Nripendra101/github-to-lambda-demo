@@ -8,8 +8,8 @@ phases:
       - echo "Cleaning any existing dependencies..."
       - rm -rf python/  # Remove any previously installed dependencies
       - mkdir -p python
-      - echo "Installing Pandas (with NumPy) for AWS Lambda..."
-      - pip install --platform manylinux2014_x86_64 --only-binary=:all: --no-cache-dir -r requirements.txt -t python/
+      - echo "Installing dependencies for Lambda Layer..."
+      - pip install --no-cache-dir --force-reinstall -r requirements.txt -t python/
       - echo "Dependencies installed. Listing contents:"
       - ls -l python/
 
@@ -36,9 +36,34 @@ phases:
           --query Version --output text --region us-east-2)
         echo "Published Lambda Layer Version: $LAYER_VERSION"
 
-      - echo "Updating Lambda function to use the new layer..."
+      - echo "Updating Lambda function code..."
       - |
+        aws lambda update-function-code \
+          --function-name github-to-lambda-test \
+          --zip-file fileb://lambda_function.zip \
+          --region us-east-2
+
+      - echo "Waiting for Lambda function update to complete..."
+      - |
+        while true; do
+          STATUS=$(aws lambda get-function-configuration --function-name github-to-lambda-test --query 'LastUpdateStatus' --output text --region us-east-2)
+          echo "Current Lambda update status: $STATUS"
+          if [ "$STATUS" == "Successful" ] || [ "$STATUS" == "Failed" ]; then
+            break
+          fi
+          echo "Lambda update still in progress. Retrying in 10 seconds..."
+          sleep 10
+        done
+
+      - echo "Fetching AWS Account ID from Environment Variable..."
+      - echo "Using AWS_ACCOUNT_ID = $AWS_ACCOUNT_ID"
+
+      - echo "Attaching latest Lambda Layer..."
+      - |
+        LAYER_ARN="arn:aws:lambda:us-east-2:$AWS_ACCOUNT_ID:layer:lambda-dependencies-layer:$LAYER_VERSION"
         aws lambda update-function-configuration \
-          --function-name MyLambdaFunction \
-          --layers arn:aws:lambda:us-east-2:123456789012:layer:lambda-dependencies-layer:$LAYER_VERSION
-        echo "Lambda function updated with new layer."
+          --function-name github-to-lambda-test \
+          --layers $LAYER_ARN \
+          --region us-east-2
+
+      - echo "Deployment Completed!"
