@@ -5,10 +5,11 @@ phases:
     runtime-versions:
       python: 3.11
     commands:
-      - echo "Installing dependencies for Lambda Layer..."
-      - rm -rf python/
+      - echo "Cleaning any existing dependencies..."
+      - rm -rf python/  # Remove any previously installed dependencies
       - mkdir -p python
-      - pip install --no-cache-dir --only-binary=:all: -r requirements.txt -t python/
+      - echo "Installing Pandas (with NumPy) for AWS Lambda..."
+      - pip install --platform manylinux2014_x86_64 --only-binary=:all: --no-cache-dir -r requirements.txt -t python/
       - echo "Dependencies installed. Listing contents:"
       - ls -l python/
 
@@ -18,6 +19,7 @@ phases:
       - zip -r9 dependencies_layer.zip python
       - echo "Dependency layer zip created."
       - ls -lh dependencies_layer.zip
+
       - echo "Zipping Lambda function package..."
       - zip -r9 lambda_function.zip lambda_function.py
       - echo "Lambda function zip created."
@@ -26,11 +28,10 @@ phases:
   post_build:
     commands:
       - echo "Publishing new Lambda Layer version..."
-      - LAYER_VERSION=$(aws lambda publish-layer-version --layer-name lambda-dependencies-layer --zip-file fileb://dependencies_layer.zip --compatible-runtimes python3.11 --query Version --output text --region us-east-2)
-      - if [ $? -ne 0 ]; then echo "Error publishing Lambda Layer."; exit 1; fi
-      - echo "Published Lambda Layer Version: $LAYER_VERSION"
-      - echo "Updating Lambda function code..."
-      - aws lambda update-function-code --function-name github-to-lambda-test --zip-file fileb://lambda_function.zip --region us-east-2
-      - echo "Fetching AWS Account ID from Environment Variable..."
-      - echo "Using AWS_ACCOUNT_ID = $AWS_ACCOUNT_ID"
-      - echo "Deployment Completed!"
+      - |
+        LAYER_VERSION=$(aws lambda publish-layer-version \
+          --layer-name lambda-dependencies-layer \
+          --zip-file fileb://dependencies_layer.zip \
+          --compatible-runtimes python3.11 \
+          --query Version --output text --region us-east-2)
+        echo "Published Lambda Layer Version: $LAYER_VERSION"
